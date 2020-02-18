@@ -2,16 +2,30 @@ package net.wzyeo.safecharge;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.icu.util.Output;
 import android.os.BatteryManager;
 import android.os.Bundle;
+import android.util.Base64;
 import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Adapter;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import org.apache.commons.net.util.SubnetUtils;
+import org.w3c.dom.Text;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.lang.reflect.Array;
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -21,15 +35,29 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements
+        AdapterView.OnItemClickListener, View.OnClickListener {
 
     String wlanIP;
     ArrayList<String> ipFound;
+    int addressesScanned;
+    String selectedPlugIP;
+    Button onButton;
+    Button offButton;
+    byte[] onPayload;
+    byte[] offPayload;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        onButton = findViewById(R.id.button_on);
+        offButton = findViewById(R.id.button_off);
+        onButton.setOnClickListener(this);
+        offButton.setOnClickListener(this);
+        onPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu36Lfog==", Base64.DEFAULT);
+        offPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu3qPeow==", Base64.DEFAULT);
         getDeviceWlanIp();
         new Thread(new Runnable() {
             @Override
@@ -73,6 +101,7 @@ public class MainActivity extends AppCompatActivity {
     }
     void scanNetwork(){
         ipFound = new ArrayList<>();
+        addressesScanned = 0;
         SubnetUtils utils = new SubnetUtils(wlanIP + "/24");
         String[] allIps = utils.getInfo().getAllAddresses();
         ArrayList<String> openIps = new ArrayList<String>();
@@ -83,13 +112,33 @@ public class MainActivity extends AppCompatActivity {
                 public void run() {
                     try{
                         Socket socket = new Socket(ip, 9999);
-                        Log.d("weizheng", ip);
                         ipFound.add(ip);
+                        socket.close();
                     } catch(UnknownHostException e){
                     } catch(IOException e){
+                    } finally {
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                scanNetworkCallback();
+                            }
+                        });
                     }
                 }
             }).start();
+        }
+    }
+    void scanNetworkCallback(){
+        addressesScanned++;
+        if(addressesScanned == 254){
+            ArrayList<RowItem> rowItemList = new ArrayList<>();
+            for(String ip : ipFound){
+                rowItemList.add((new RowItem(ip)));
+            }
+            ListView listView = findViewById(R.id.listview_ip_list);
+            RowAdapter rowAdapter = new RowAdapter(this, R.layout.activity_main, rowItemList);
+            listView.setAdapter(rowAdapter);
+            listView.setOnItemClickListener(this);
         }
     }
     void getBatteryStatus(){
@@ -110,4 +159,75 @@ public class MainActivity extends AppCompatActivity {
         TextView levelView = findViewById(R.id.textview_battery_level);
         levelView.setText(batteryPct + "");
     }
+    @Override
+    public void onItemClick(AdapterView<?> adapter, View view, int pos, long id){
+        RowItem item = (RowItem) adapter.getItemAtPosition(pos);
+        selectedPlugIP = item.ipAddress;
+        TextView selectedPlugView = findViewById(R.id.textview_selected_plug);
+        selectedPlugView.setText(selectedPlugIP);
+        onButton.setVisibility(View.VISIBLE);
+        offButton.setVisibility(View.VISIBLE);
+    }
+    @Override
+    public void onClick(View view){
+        switch (view.getId()) {
+            case R.id.button_on:
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            Socket socket = new Socket(selectedPlugIP, 9999);
+                            OutputStream outputStream = socket.getOutputStream();
+                            outputStream.write(onPayload);
+                        } catch(IOException e){}
+                    }
+                }).start();
+                break;
+            case R.id.button_off:
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            Socket socket = new Socket(selectedPlugIP, 9999);
+                            OutputStream outputStream = socket.getOutputStream();
+                            outputStream.write(offPayload);
+                        } catch(IOException e){}
+                    }
+                }).start();
+                break;
+        }
+    }
+    public class RowItem{
+        String ipAddress;
+        public RowItem(String ipAddress){
+            this.ipAddress = ipAddress;
+        }
+    }
+    public class RowAdapter extends ArrayAdapter{
+        Context context;
+        public RowAdapter(Context context, int resourceId, List<RowItem> items){
+            super(context, resourceId, items);
+            this.context = context;
+        }
+        @Override
+        public View getView(int position, View view, ViewGroup parent){
+            RowItemView row = null;
+            RowItem item = (RowItem) getItem(position);
+            LayoutInflater inflater = (LayoutInflater) context.getSystemService(Activity.LAYOUT_INFLATER_SERVICE);
+            if(view == null){
+                view = inflater.inflate(R.layout.rowitem_ip_list, null);
+                row = new RowItemView();
+                row.ipAddressView = view.findViewById(R.id.textview_ip_address);
+                view.setTag(row);
+            } else {
+                row = (RowItemView) view.getTag();
+            }
+            row.ipAddressView.setText(item.ipAddress);
+            return view;
+        }
+    }
+    public class RowItemView{
+        TextView ipAddressView;
+    }
+
 }

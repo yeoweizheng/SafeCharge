@@ -52,5 +52,45 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Scan"></Button>
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="List of Connected Smart Plugs"></TextView>
+    <ListView
+        android:id="@+id/listview_ip_list"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"></ListView>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Selected plug:"></TextView>
+        <TextView
+            android:id="@+id/textview_selected_plug"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"></TextView>
+    </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <Button
+            android:id="@+id/button_on"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="On"
+            android:visibility="gone"></Button>
+        <Button
+            android:id="@+id/button_off"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Off"
+            android:visibility="gone"></Button>
+    </LinearLayout>
 
 </LinearLayout>
