@@ -42,12 +42,13 @@ public class MainActivity extends AppCompatActivity implements
 
     String wlanIP;
     ArrayList<String> ipFound;
-    int addressesScanned;
     String selectedPlugIP;
     Button onButton;
     Button offButton;
     byte[] onPayload;
     byte[] offPayload;
+    ArrayList<RowItem> rowItemList;
+    RowAdapter rowAdapter;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -58,6 +59,11 @@ public class MainActivity extends AppCompatActivity implements
         offButton.setOnClickListener(this);
         onPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu36Lfog==", Base64.DEFAULT);
         offPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu3qPeow==", Base64.DEFAULT);
+        rowItemList = new ArrayList<>();
+        ListView listView = findViewById(R.id.listview_ip_list);
+        rowAdapter = new RowAdapter(this, R.layout.activity_main, rowItemList);
+        listView.setAdapter(rowAdapter);
+        listView.setOnItemClickListener(this);
         getDeviceWlanIp();
         new Thread(new Runnable() {
             @Override
@@ -101,7 +107,6 @@ public class MainActivity extends AppCompatActivity implements
     }
     void scanNetwork(){
         ipFound = new ArrayList<>();
-        addressesScanned = 0;
         SubnetUtils utils = new SubnetUtils(wlanIP + "/24");
         String[] allIps = utils.getInfo().getAllAddresses();
         ArrayList<String> openIps = new ArrayList<String>();
@@ -110,17 +115,20 @@ public class MainActivity extends AppCompatActivity implements
             new Thread(new Runnable() {
                 @Override
                 public void run() {
+                    boolean validIP = false;
                     try{
                         Socket socket = new Socket(ip, 9999);
                         ipFound.add(ip);
+                        validIP = true;
                         socket.close();
                     } catch(UnknownHostException e){
                     } catch(IOException e){
                     } finally {
+                        final boolean validIP2 = validIP;
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
-                                scanNetworkCallback();
+                                scanNetworkCallback(ip, validIP2);
                             }
                         });
                     }
@@ -128,17 +136,10 @@ public class MainActivity extends AppCompatActivity implements
             }).start();
         }
     }
-    void scanNetworkCallback(){
-        addressesScanned++;
-        if(addressesScanned == 254){
-            ArrayList<RowItem> rowItemList = new ArrayList<>();
-            for(String ip : ipFound){
-                rowItemList.add((new RowItem(ip)));
-            }
-            ListView listView = findViewById(R.id.listview_ip_list);
-            RowAdapter rowAdapter = new RowAdapter(this, R.layout.activity_main, rowItemList);
-            listView.setAdapter(rowAdapter);
-            listView.setOnItemClickListener(this);
+    void scanNetworkCallback(String ip, boolean validIP){
+        if(validIP){
+            rowItemList.add(new RowItem(ip));
+            rowAdapter.notifyDataSetChanged();
         }
     }
     void getBatteryStatus(){
