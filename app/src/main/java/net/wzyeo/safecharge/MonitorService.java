@@ -1,5 +1,8 @@
 package net.wzyeo.safecharge;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -9,6 +12,8 @@ import android.os.BatteryManager;
 import android.os.IBinder;
 import android.util.Base64;
 import android.util.Log;
+
+import androidx.core.app.NotificationCompat;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -32,6 +37,13 @@ public class MonitorService extends Service {
         onPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu36Lfog==", Base64.DEFAULT);
         offPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu3qPeow==", Base64.DEFAULT);
         registerBatteryReceiver();
+        NotificationChannel channel = new NotificationChannel("Foreground Service Channel", "Foreground Service Channel", NotificationManager.IMPORTANCE_DEFAULT);
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        manager.createNotificationChannel(channel);
+        Notification notification = new NotificationCompat.Builder(this, "Foreground Service Channel")
+                .setContentTitle("SafeCharge Service")
+                .build();
+        startForeground(1, notification);
         return START_REDELIVER_INTENT;
     }
 
