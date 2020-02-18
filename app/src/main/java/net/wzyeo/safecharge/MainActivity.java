@@ -3,10 +3,10 @@ package net.wzyeo.safecharge;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.icu.util.Output;
 import android.os.BatteryManager;
 import android.os.Bundle;
 import android.util.Base64;
@@ -14,19 +14,17 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Adapter;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
 
 import org.apache.commons.net.util.SubnetUtils;
-import org.w3c.dom.Text;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.lang.reflect.Array;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -45,39 +43,44 @@ public class MainActivity extends AppCompatActivity implements
     String selectedPlugIP;
     Button onButton;
     Button offButton;
+    Button scanButton;
+    Button startServiceButton;
+    Button stopServiceButton;
     byte[] onPayload;
     byte[] offPayload;
     ArrayList<RowItem> rowItemList;
     RowAdapter rowAdapter;
+    TextView statusView;
+    TextView levelView;
+    TextView serviceStatusView;
+    Intent serviceIntent;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        statusView = findViewById(R.id.textview_battery_status);
+        levelView = findViewById(R.id.textview_battery_level);
+        serviceStatusView = findViewById(R.id.textview_service_status);
         onButton = findViewById(R.id.button_on);
         offButton = findViewById(R.id.button_off);
+        startServiceButton = findViewById(R.id.button_start_service);
+        stopServiceButton = findViewById(R.id.button_stop_service);
         onButton.setOnClickListener(this);
         offButton.setOnClickListener(this);
+        startServiceButton.setOnClickListener(this);
+        stopServiceButton.setOnClickListener(this);
         onPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu36Lfog==", Base64.DEFAULT);
         offPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu3qPeow==", Base64.DEFAULT);
+        scanButton = findViewById(R.id.button_scan);
+        scanButton.setOnClickListener(this);
         rowItemList = new ArrayList<>();
         ListView listView = findViewById(R.id.listview_ip_list);
         rowAdapter = new RowAdapter(this, R.layout.activity_main, rowItemList);
         listView.setAdapter(rowAdapter);
         listView.setOnItemClickListener(this);
+        serviceIntent = new Intent(this, MonitorService.class);
+        getBatteryStatus();
         getDeviceWlanIp();
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while(true){
-                    getBatteryStatus();
-                    try{
-                        Thread.sleep(1000);
-                    } catch(InterruptedException e){
-                        e.printStackTrace();
-                    }
-                }
-            }
-        }).start();
     }
     void getDeviceWlanIp(){
         try{
@@ -101,12 +104,11 @@ public class MainActivity extends AppCompatActivity implements
         } catch(SocketException e){
             e.printStackTrace();
         }
-        if(!wlanIP.isEmpty()) {
-            scanNetwork();
-        }
+        scanNetwork();
     }
     void scanNetwork(){
         ipFound = new ArrayList<>();
+        rowItemList.clear();
         SubnetUtils utils = new SubnetUtils(wlanIP + "/24");
         String[] allIps = utils.getInfo().getAllAddresses();
         ArrayList<String> openIps = new ArrayList<String>();
@@ -142,23 +144,26 @@ public class MainActivity extends AppCompatActivity implements
             rowAdapter.notifyDataSetChanged();
         }
     }
-    void getBatteryStatus(){
-        IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        Intent batteryStatus = getApplicationContext().registerReceiver(null, intentFilter);
-        int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
-        boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                status == BatteryManager.BATTERY_STATUS_FULL;
-        TextView statusView = findViewById(R.id.textview_battery_status);
-        if(isCharging){
-            statusView.setText("Charging");
-        } else {
-            statusView.setText("Not charging");
+    BroadcastReceiver batteryReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            int plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
+            boolean isCharging = plugged == BatteryManager.BATTERY_PLUGGED_AC ||
+                    plugged == BatteryManager.BATTERY_PLUGGED_USB;
+            if(isCharging){
+                statusView.setText("Charging");
+            } else {
+                statusView.setText("Not charging");
+            }
+            int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+            int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+            float batteryPct = level * 100 / (float) scale;
+            levelView.setText(batteryPct + "");
         }
-        int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
-        int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
-        float batteryPct = level * 100 / (float) scale;
-        TextView levelView = findViewById(R.id.textview_battery_level);
-        levelView.setText(batteryPct + "");
+    };
+    void getBatteryStatus(){
+        IntentFilter changedFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        registerReceiver(batteryReceiver, changedFilter);
     }
     @Override
     public void onItemClick(AdapterView<?> adapter, View view, int pos, long id){
@@ -168,10 +173,27 @@ public class MainActivity extends AppCompatActivity implements
         selectedPlugView.setText(selectedPlugIP);
         onButton.setVisibility(View.VISIBLE);
         offButton.setVisibility(View.VISIBLE);
+        startServiceButton.setVisibility(View.VISIBLE);
+        stopServiceButton.setVisibility(View.VISIBLE);
     }
     @Override
     public void onClick(View view){
         switch (view.getId()) {
+            case R.id.button_start_service:
+                int threshold = Integer.parseInt(((EditText)findViewById(R.id.textview_charging_threshold)).getText().toString());
+                serviceIntent.putExtra("ip", selectedPlugIP);
+                serviceIntent.putExtra("threshold", threshold);
+                stopService(serviceIntent);
+                startService(serviceIntent);
+                serviceStatusView.setText("Started");
+                break;
+            case R.id.button_stop_service:
+                stopService(serviceIntent);
+                serviceStatusView.setText("Stopped");
+                break;
+            case R.id.button_scan:
+                getDeviceWlanIp();
+                break;
             case R.id.button_on:
                 new Thread(new Runnable() {
                     @Override
@@ -229,6 +251,11 @@ public class MainActivity extends AppCompatActivity implements
     }
     public class RowItemView{
         TextView ipAddressView;
+    }
+    @Override
+    public void onDestroy(){
+        super.onDestroy();
+        unregisterReceiver(batteryReceiver);
     }
 
 }

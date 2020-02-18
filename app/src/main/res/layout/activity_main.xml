@@ -47,19 +47,22 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"></TextView>
     </LinearLayout>
-    <Button
-        android:id="@+id/button_scan"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Scan"></Button>
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="List of Connected Smart Plugs"></TextView>
-    <ListView
-        android:id="@+id/listview_ip_list"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"></ListView>
+        android:layout_height="wrap_content">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Charging threshold:"></TextView>
+        <EditText
+            android:id="@+id/textview_charging_threshold"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:inputType="number"
+            android:text="80"></EditText>
+    </LinearLayout>
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
@@ -74,6 +77,34 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"></TextView>
     </LinearLayout>
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Service status:"></TextView>
+        <TextView
+            android:id="@+id/textview_service_status"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Stopped"></TextView>
+    </LinearLayout>
+    <Button
+        android:id="@+id/button_scan"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Scan"></Button>
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="List of Connected Smart Plugs"></TextView>
+    <ListView
+        android:id="@+id/listview_ip_list"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"></ListView>
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
@@ -92,5 +123,22 @@
             android:text="Off"
             android:visibility="gone"></Button>
     </LinearLayout>
-
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <Button
+            android:id="@+id/button_start_service"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Start Service"
+            android:visibility="gone"></Button>
+        <Button
+            android:id="@+id/button_stop_service"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Stop Service"
+            android:visibility="gone"></Button>
+    </LinearLayout>
 </LinearLayout>
