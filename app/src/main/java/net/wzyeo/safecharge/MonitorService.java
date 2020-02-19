@@ -39,7 +39,6 @@ public class MonitorService extends Service {
         onPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu36Lfog==", Base64.DEFAULT);
         offPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu3qPeow==", Base64.DEFAULT);
         firstRun = true;
-        registerBatteryReceiver();
         getBatteryStatus();
         Intent activityIntent = new Intent(this, MainActivity.class);
         activityIntent.putExtra("ip", ip);
@@ -57,29 +56,6 @@ public class MonitorService extends Service {
                 .build();
         startForeground(1, notification);
         return START_REDELIVER_INTENT;
-    }
-
-    BroadcastReceiver batteryReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            int plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
-            boolean isCharging = plugged == BatteryManager.BATTERY_PLUGGED_AC ||
-                    plugged == BatteryManager.BATTERY_PLUGGED_USB;
-            int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
-            int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
-            float batteryPct = level * 100 / (float) scale;
-            if(isCharging && batteryPct >= threshold){
-                sendPayload(offPayload);
-            }
-            if(!isCharging && batteryPct < threshold && firstRun){
-                sendPayload(onPayload);
-                firstRun = false;
-            }
-        }
-    };
-    void registerBatteryReceiver(){
-        /*IntentFilter changedFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        registerReceiver(batteryReceiver, changedFilter);*/
     }
     void updateBatteryStatus(boolean isCharging, int level){
         if(isCharging && level >= threshold){
@@ -138,6 +114,5 @@ public class MonitorService extends Service {
     @Override
     public void onDestroy(){
         super.onDestroy();
-        unregisterReceiver(batteryReceiver);
     }
 }

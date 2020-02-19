@@ -168,30 +168,11 @@ public class MainActivity extends AppCompatActivity implements
             rowAdapter.notifyDataSetChanged();
         }
     }
-    BroadcastReceiver batteryReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            int plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
-            boolean isCharging = plugged == BatteryManager.BATTERY_PLUGGED_AC ||
-                    plugged == BatteryManager.BATTERY_PLUGGED_USB;
-            if(isCharging){
-                statusView.setText("Charging");
-            } else {
-                statusView.setText("Not charging");
-            }
-            int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
-            int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
-            float batteryPct = level * 100 / (float) scale;
-            levelView.setText(batteryPct + "");
-        }
-    };
     void updateBatteryStatus(String status, int level){
         statusView.setText(status);
         levelView.setText(level + "");
     }
     void getBatteryStatus(){
-        /*IntentFilter changedFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        registerReceiver(batteryReceiver, changedFilter);*/
         final BatteryManager batteryManager = (BatteryManager)getSystemService(BATTERY_SERVICE);
         new Thread(new Runnable() {
             @Override
@@ -345,7 +326,6 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public void onDestroy(){
         super.onDestroy();
-        unregisterReceiver(batteryReceiver);
     }
 
 }
