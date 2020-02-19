@@ -29,6 +29,7 @@ public class MonitorService extends Service {
     byte[] onPayload;
     byte[] offPayload;
     boolean firstRun;
+    boolean triggeredOff;
     static final String CHANNEL_ID = "Foreground Service Channel";
 
     @Override
@@ -39,6 +40,7 @@ public class MonitorService extends Service {
         onPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu36Lfog==", Base64.DEFAULT);
         offPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu3qPeow==", Base64.DEFAULT);
         firstRun = true;
+        triggeredOff = false;
         getBatteryStatus();
         Intent activityIntent = new Intent(this, MainActivity.class);
         activityIntent.putExtra("ip", ip);
@@ -60,10 +62,14 @@ public class MonitorService extends Service {
     void updateBatteryStatus(boolean isCharging, int level){
         if(isCharging && level >= threshold){
             sendPayload(offPayload);
+            triggeredOff = true;
         }
         if(!isCharging && level < threshold && firstRun){
             sendPayload(onPayload);
             firstRun = false;
+        }
+        if(triggeredOff && !isCharging){
+            stopSelf();
         }
     }
     void getBatteryStatus(){

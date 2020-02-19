@@ -88,6 +88,10 @@ public class MainActivity extends AppCompatActivity implements
         listView.setOnItemClickListener(this);
         serviceIntent = new Intent(this, MonitorService.class);
         getBatteryStatus();
+    }
+    @Override
+    public void onResume(){
+        super.onResume();
         if(getIntent().getStringExtra("ip") != null){
             selectedPlugIP = getIntent().getStringExtra("ip");
             selectedPlugView.setText(selectedPlugIP);
@@ -100,12 +104,12 @@ public class MainActivity extends AppCompatActivity implements
         setServiceStatus();
     }
     void resetIPInfo(){
-        wlanIP = null;
         selectedPlugIP = null;
-        ipView.setText("(Not available)");
         selectedPlugView.setText("(Not selected)");
     }
     void getDeviceWlanIp(){
+        wlanIP = null;
+        ipView.setText("(Not available)");
         try{
             Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
             while(interfaces.hasMoreElements()){
