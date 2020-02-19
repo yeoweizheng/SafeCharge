@@ -9,51 +9,37 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
         <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
+            style="@style/FontHeading"
             android:text="Battery Level:"></TextView>
         <TextView
-            android:id="@+id/textview_battery_level"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"></TextView>
+            style="@style/FontContent"
+            android:id="@+id/textview_battery_level"/>
     </LinearLayout>
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
         <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
+            style="@style/FontHeading"
             android:text="Battery Status:"></TextView>
         <TextView
-            android:id="@+id/textview_battery_status"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"></TextView>
+            style="@style/FontContent"
+            android:id="@+id/textview_battery_status"></TextView>
     </LinearLayout>
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
         <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
+            style="@style/FontHeading"
             android:text="Device IP Address:"></TextView>
         <TextView
-            android:id="@+id/textview_device_ip"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"></TextView>
+            style="@style/FontContent"
+            android:id="@+id/textview_device_ip"/>
     </LinearLayout>
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
         <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
+            style="@style/FontHeading"
             android:text="Charging threshold:"></TextView>
         <EditText
             android:id="@+id/textview_charging_threshold"
@@ -67,44 +53,22 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
         <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
+            style="@style/FontHeading"
             android:text="Selected plug:"></TextView>
         <TextView
-            android:id="@+id/textview_selected_plug"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"></TextView>
+            style="@style/FontContent"
+            android:id="@+id/textview_selected_plug"/>
     </LinearLayout>
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
         <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
+            style="@style/FontHeading"
             android:text="Service status:"></TextView>
         <TextView
-            android:id="@+id/textview_service_status"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Stopped"></TextView>
+            style="@style/FontContent"
+            android:id="@+id/textview_service_status"></TextView>
     </LinearLayout>
-    <Button
-        android:id="@+id/button_scan"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Scan"></Button>
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="List of Connected Smart Plugs"></TextView>
-    <ListView
-        android:id="@+id/listview_ip_list"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"></ListView>
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
@@ -113,15 +77,13 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="On"
-            android:visibility="gone"></Button>
+            android:text="On"/>
         <Button
             android:id="@+id/button_off"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Off"
-            android:visibility="gone"></Button>
+            android:text="Off"/>
     </LinearLayout>
     <LinearLayout
         android:layout_width="match_parent"
@@ -131,14 +93,28 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Start Service"
-            android:visibility="gone"></Button>
+            android:text="Start Service"/>
         <Button
             android:id="@+id/button_stop_service"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Stop Service"
-            android:visibility="gone"></Button>
+            android:text="Stop Service"/>
     </LinearLayout>
+    <Button
+        android:id="@+id/button_scan"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Scan"></Button>
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="18dp"
+        android:padding="5dp"
+        android:textStyle="bold"
+        android:text="Available smart plugs:"></TextView>
+    <ListView
+        android:id="@+id/listview_ip_list"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"></ListView>
 </LinearLayout>

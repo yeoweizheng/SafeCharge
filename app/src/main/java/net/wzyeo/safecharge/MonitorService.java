@@ -3,6 +3,7 @@ package net.wzyeo.safecharge;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -23,11 +24,12 @@ public class MonitorService extends Service {
     public MonitorService() {
     }
 
-    Thread thread;
     String ip;
     int threshold;
     byte[] onPayload;
     byte[] offPayload;
+    boolean firstRun;
+    static final String CHANNEL_ID = "Foreground Service Channel";
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId){
@@ -36,12 +38,21 @@ public class MonitorService extends Service {
         threshold = intent.getIntExtra("threshold", -1);
         onPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu36Lfog==", Base64.DEFAULT);
         offPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu3qPeow==", Base64.DEFAULT);
+        firstRun = true;
         registerBatteryReceiver();
-        NotificationChannel channel = new NotificationChannel("Foreground Service Channel", "Foreground Service Channel", NotificationManager.IMPORTANCE_DEFAULT);
+        Intent activityIntent = new Intent(this, MainActivity.class);
+        activityIntent.putExtra("ip", ip);
+        activityIntent.putExtra("threshold", threshold);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, activityIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Foreground Service Channel", NotificationManager.IMPORTANCE_DEFAULT);
         NotificationManager manager = getSystemService(NotificationManager.class);
         manager.createNotificationChannel(channel);
-        Notification notification = new NotificationCompat.Builder(this, "Foreground Service Channel")
+        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentTitle("SafeCharge Service")
+                .setContentText("Plug IP: " + ip + " Threshold: " + threshold)
+                .setContentIntent(pendingIntent)
                 .build();
         startForeground(1, notification);
         return START_REDELIVER_INTENT;
@@ -57,7 +68,11 @@ public class MonitorService extends Service {
             int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
             float batteryPct = level * 100 / (float) scale;
             if(isCharging && batteryPct >= threshold){
-                turnOff();
+                sendPayload(offPayload);
+            }
+            if(!isCharging && batteryPct < threshold && firstRun){
+                sendPayload(onPayload);
+                firstRun = false;
             }
         }
     };
@@ -65,27 +80,18 @@ public class MonitorService extends Service {
         IntentFilter changedFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
         registerReceiver(batteryReceiver, changedFilter);
     }
-    void turnOn(){
+    void sendPayload(final byte[] payload){
         new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
                     Socket socket = new Socket(ip, 9999);
                     OutputStream outputStream = socket.getOutputStream();
-                    outputStream.write(onPayload);
-                } catch(IOException e){}
-            }
-        }).start();
-    }
-    void turnOff(){
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    Socket socket = new Socket(ip, 9999);
-                    OutputStream outputStream = socket.getOutputStream();
-                    outputStream.write(offPayload);
-                } catch(IOException e){}
+                    outputStream.write(payload);
+                    socket.close();
+                } catch(IOException e){
+                    e.printStackTrace();
+                }
             }
         }).start();
     }

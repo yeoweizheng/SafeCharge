@@ -3,6 +3,7 @@ package net.wzyeo.safecharge;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -50,9 +51,13 @@ public class MainActivity extends AppCompatActivity implements
     byte[] offPayload;
     ArrayList<RowItem> rowItemList;
     RowAdapter rowAdapter;
+    TextView ipView;
     TextView statusView;
     TextView levelView;
     TextView serviceStatusView;
+    TextView selectedPlugView;
+    EditText chargingThresholdView;
+    ListView listView;
     Intent serviceIntent;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,26 +66,44 @@ public class MainActivity extends AppCompatActivity implements
         statusView = findViewById(R.id.textview_battery_status);
         levelView = findViewById(R.id.textview_battery_level);
         serviceStatusView = findViewById(R.id.textview_service_status);
+        ipView = findViewById(R.id.textview_device_ip);
+        selectedPlugView = findViewById(R.id.textview_selected_plug);
+        chargingThresholdView = findViewById(R.id.textview_charging_threshold);
         onButton = findViewById(R.id.button_on);
         offButton = findViewById(R.id.button_off);
         startServiceButton = findViewById(R.id.button_start_service);
         stopServiceButton = findViewById(R.id.button_stop_service);
+        scanButton = findViewById(R.id.button_scan);
         onButton.setOnClickListener(this);
         offButton.setOnClickListener(this);
         startServiceButton.setOnClickListener(this);
         stopServiceButton.setOnClickListener(this);
+        scanButton.setOnClickListener(this);
         onPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu36Lfog==", Base64.DEFAULT);
         offPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu3qPeow==", Base64.DEFAULT);
-        scanButton = findViewById(R.id.button_scan);
-        scanButton.setOnClickListener(this);
         rowItemList = new ArrayList<>();
-        ListView listView = findViewById(R.id.listview_ip_list);
+        listView = findViewById(R.id.listview_ip_list);
         rowAdapter = new RowAdapter(this, R.layout.activity_main, rowItemList);
         listView.setAdapter(rowAdapter);
         listView.setOnItemClickListener(this);
         serviceIntent = new Intent(this, MonitorService.class);
         getBatteryStatus();
+        if(getIntent().getStringExtra("ip") != null){
+            selectedPlugIP = getIntent().getStringExtra("ip");
+            selectedPlugView.setText(selectedPlugIP);
+        } else{
+            resetIPInfo();
+        }
+        chargingThresholdView.setText(getIntent().getIntExtra("threshold", 80) + "");
         getDeviceWlanIp();
+        setPlugControls();
+        setServiceStatus();
+    }
+    void resetIPInfo(){
+        wlanIP = null;
+        selectedPlugIP = null;
+        ipView.setText("(Not available)");
+        selectedPlugView.setText("(Not selected)");
     }
     void getDeviceWlanIp(){
         try{
@@ -97,7 +120,6 @@ public class MainActivity extends AppCompatActivity implements
                     if(!(address instanceof Inet4Address)) continue;
                     if(!iface.getDisplayName().contains("wlan")) continue;
                     wlanIP = address.getHostAddress();
-                    TextView ipView = findViewById(R.id.textview_device_ip);
                     ipView.setText(wlanIP);
                 }
             }
@@ -109,6 +131,8 @@ public class MainActivity extends AppCompatActivity implements
     void scanNetwork(){
         ipFound = new ArrayList<>();
         rowItemList.clear();
+        rowAdapter.notifyDataSetChanged();
+        if(wlanIP == null) return;
         SubnetUtils utils = new SubnetUtils(wlanIP + "/24");
         String[] allIps = utils.getInfo().getAllAddresses();
         ArrayList<String> openIps = new ArrayList<String>();
@@ -165,58 +189,86 @@ public class MainActivity extends AppCompatActivity implements
         IntentFilter changedFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
         registerReceiver(batteryReceiver, changedFilter);
     }
+    void setPlugControls(){
+        if(selectedPlugIP != null){
+            onButton.setEnabled(true);
+            offButton.setEnabled(true);
+        } else {
+            onButton.setEnabled(false);
+            offButton.setEnabled(false);
+        }
+    }
+    void sendPayload(final byte[] payload){
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Socket socket = new Socket(selectedPlugIP, 9999);
+                    OutputStream outputStream = socket.getOutputStream();
+                    outputStream.write(payload);
+                    socket.close();
+                } catch(IOException e){
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+    }
+    boolean isServiceRunning(){
+        ActivityManager manager = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+        for(ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)){
+            if(service.service.getClassName().equals(MonitorService.class.getName())) return true;
+        }
+        return false;
+    }
+    void setServiceStatus(){
+        if(isServiceRunning()){
+            serviceStatusView.setText("Started");
+            startServiceButton.setEnabled(false);
+            stopServiceButton.setEnabled(true);
+        } else {
+            serviceStatusView.setText("Not started");
+            if(selectedPlugIP != null) {
+                startServiceButton.setEnabled(true);
+            } else {
+                startServiceButton.setEnabled(false);
+            }
+            stopServiceButton.setEnabled(false);
+        }
+    }
     @Override
     public void onItemClick(AdapterView<?> adapter, View view, int pos, long id){
         RowItem item = (RowItem) adapter.getItemAtPosition(pos);
         selectedPlugIP = item.ipAddress;
-        TextView selectedPlugView = findViewById(R.id.textview_selected_plug);
         selectedPlugView.setText(selectedPlugIP);
-        onButton.setVisibility(View.VISIBLE);
-        offButton.setVisibility(View.VISIBLE);
-        startServiceButton.setVisibility(View.VISIBLE);
-        stopServiceButton.setVisibility(View.VISIBLE);
+        setPlugControls();
+        setServiceStatus();
     }
     @Override
     public void onClick(View view){
         switch (view.getId()) {
             case R.id.button_start_service:
-                int threshold = Integer.parseInt(((EditText)findViewById(R.id.textview_charging_threshold)).getText().toString());
+                int threshold = Integer.parseInt(chargingThresholdView.getText().toString());
                 serviceIntent.putExtra("ip", selectedPlugIP);
                 serviceIntent.putExtra("threshold", threshold);
                 stopService(serviceIntent);
                 startService(serviceIntent);
-                serviceStatusView.setText("Started");
+                setServiceStatus();
                 break;
             case R.id.button_stop_service:
                 stopService(serviceIntent);
-                serviceStatusView.setText("Stopped");
+                setServiceStatus();
                 break;
             case R.id.button_scan:
+                resetIPInfo();
                 getDeviceWlanIp();
+                setPlugControls();
+                setServiceStatus();
                 break;
             case R.id.button_on:
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            Socket socket = new Socket(selectedPlugIP, 9999);
-                            OutputStream outputStream = socket.getOutputStream();
-                            outputStream.write(onPayload);
-                        } catch(IOException e){}
-                    }
-                }).start();
+                sendPayload(onPayload);
                 break;
             case R.id.button_off:
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            Socket socket = new Socket(selectedPlugIP, 9999);
-                            OutputStream outputStream = socket.getOutputStream();
-                            outputStream.write(offPayload);
-                        } catch(IOException e){}
-                    }
-                }).start();
+                sendPayload(offPayload);
                 break;
         }
     }
@@ -251,6 +303,10 @@ public class MainActivity extends AppCompatActivity implements
     }
     public class RowItemView{
         TextView ipAddressView;
+    }
+    @Override
+    public void onBackPressed(){
+        finish();
     }
     @Override
     public void onDestroy(){
