@@ -40,6 +40,7 @@ public class MonitorService extends Service {
         offPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu3qPeow==", Base64.DEFAULT);
         firstRun = true;
         registerBatteryReceiver();
+        getBatteryStatus();
         Intent activityIntent = new Intent(this, MainActivity.class);
         activityIntent.putExtra("ip", ip);
         activityIntent.putExtra("threshold", threshold);
@@ -77,8 +78,42 @@ public class MonitorService extends Service {
         }
     };
     void registerBatteryReceiver(){
-        IntentFilter changedFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        registerReceiver(batteryReceiver, changedFilter);
+        /*IntentFilter changedFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        registerReceiver(batteryReceiver, changedFilter);*/
+    }
+    void updateBatteryStatus(boolean isCharging, int level){
+        if(isCharging && level >= threshold){
+            sendPayload(offPayload);
+        }
+        if(!isCharging && level < threshold && firstRun){
+            sendPayload(onPayload);
+            firstRun = false;
+        }
+    }
+    void getBatteryStatus(){
+        final BatteryManager batteryManager = (BatteryManager)getSystemService(BATTERY_SERVICE);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                int statusCode;
+                int level;
+                boolean isCharging;
+                while(true) {
+                    statusCode = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS);
+                    if(statusCode == BatteryManager.BATTERY_STATUS_CHARGING || statusCode == BatteryManager.BATTERY_STATUS_FULL){
+                        isCharging = true;
+                    } else {
+                        isCharging = false;
+                    }
+                    level = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+                    updateBatteryStatus(isCharging, level);
+                    try{
+                        Thread.sleep(1000);
+                    } catch(InterruptedException e){}
+                }
+
+            }
+        }).start();
     }
     void sendPayload(final byte[] payload){
         new Thread(new Runnable() {

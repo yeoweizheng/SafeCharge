@@ -185,9 +185,43 @@ public class MainActivity extends AppCompatActivity implements
             levelView.setText(batteryPct + "");
         }
     };
+    void updateBatteryStatus(String status, int level){
+        statusView.setText(status);
+        levelView.setText(level + "");
+    }
     void getBatteryStatus(){
-        IntentFilter changedFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        registerReceiver(batteryReceiver, changedFilter);
+        /*IntentFilter changedFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        registerReceiver(batteryReceiver, changedFilter);*/
+        final BatteryManager batteryManager = (BatteryManager)getSystemService(BATTERY_SERVICE);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                int statusCode;
+                int level;
+                String status;
+                while(true) {
+                    statusCode = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS);
+                    if(statusCode == BatteryManager.BATTERY_STATUS_CHARGING || statusCode == BatteryManager.BATTERY_STATUS_FULL){
+                        status = "Charging";
+                    } else {
+                        status = "Not charging";
+                    }
+                    level = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+                    final String status2 = status;
+                    final int level2 = level;
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            updateBatteryStatus(status2, level2);
+                        }
+                    });
+                    try{
+                        Thread.sleep(1000);
+                    } catch(InterruptedException e){}
+                }
+
+            }
+        }).start();
     }
     void setPlugControls(){
         if(selectedPlugIP != null){
