@@ -21,6 +21,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.apache.commons.net.util.SubnetUtils;
 
@@ -102,6 +103,11 @@ public class MainActivity extends AppCompatActivity implements
         getDeviceWlanIp();
         setPlugControls();
         setServiceStatus();
+    }
+    @Override
+    protected void onNewIntent(Intent intent){
+        super.onNewIntent(intent);
+        setIntent(intent);
     }
     void resetIPInfo(){
         selectedPlugIP = null;
@@ -212,9 +218,13 @@ public class MainActivity extends AppCompatActivity implements
         if(selectedPlugIP != null){
             onButton.setEnabled(true);
             offButton.setEnabled(true);
+            onButton.setAlpha(1f);
+            offButton.setAlpha(1f);
         } else {
             onButton.setEnabled(false);
             offButton.setEnabled(false);
+            onButton.setAlpha(0.4f);
+            offButton.setAlpha(0.4f);
         }
     }
     void sendPayload(final byte[] payload){
@@ -243,15 +253,20 @@ public class MainActivity extends AppCompatActivity implements
         if(isServiceRunning()){
             serviceStatusView.setText("Started");
             startServiceButton.setEnabled(false);
+            startServiceButton.setAlpha(0.4f);
             stopServiceButton.setEnabled(true);
+            stopServiceButton.setAlpha(1f);
         } else {
             serviceStatusView.setText("Not started");
             if(selectedPlugIP != null) {
                 startServiceButton.setEnabled(true);
+                startServiceButton.setAlpha(1f);
             } else {
                 startServiceButton.setEnabled(false);
+                startServiceButton.setAlpha(0.4f);
             }
             stopServiceButton.setEnabled(false);
+            stopServiceButton.setAlpha(0.4f);
         }
     }
     @Override
@@ -272,10 +287,12 @@ public class MainActivity extends AppCompatActivity implements
                 stopService(serviceIntent);
                 startService(serviceIntent);
                 setServiceStatus();
+                Toast.makeText(this, "Service started", Toast.LENGTH_SHORT).show();
                 break;
             case R.id.button_stop_service:
                 stopService(serviceIntent);
                 setServiceStatus();
+                Toast.makeText(this, "Service stopped", Toast.LENGTH_SHORT).show();
                 break;
             case R.id.button_scan:
                 resetIPInfo();

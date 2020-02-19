@@ -77,12 +77,18 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:background="@color/colorGreen"
+            android:textColor="@android:color/white"
+            android:layout_margin="10dp"
             android:text="On"/>
         <Button
             android:id="@+id/button_off"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:background="@color/colorRed"
+            android:textColor="@android:color/white"
+            android:layout_margin="10dp"
             android:text="Off"/>
     </LinearLayout>
     <LinearLayout
@@ -93,25 +99,35 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:background="@color/colorOrange"
+            android:textColor="@android:color/white"
+            android:layout_margin="10dp"
             android:text="Start Service"/>
         <Button
             android:id="@+id/button_stop_service"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:background="@color/colorOrange"
+            android:textColor="@android:color/white"
+            android:layout_margin="10dp"
             android:text="Stop Service"/>
     </LinearLayout>
     <Button
         android:id="@+id/button_scan"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@color/colorPrimaryDark"
+        android:textColor="@android:color/white"
+        android:layout_margin="10dp"
         android:text="Scan"></Button>
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="18dp"
+        android:textSize="20dp"
         android:padding="5dp"
         android:textStyle="bold"
+        android:textAlignment="center"
         android:text="Available smart plugs:"></TextView>
     <ListView
         android:id="@+id/listview_ip_list"

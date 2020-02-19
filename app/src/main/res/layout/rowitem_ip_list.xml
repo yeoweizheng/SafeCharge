@@ -5,7 +5,8 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="18dp"
+        android:textSize="22dp"
         android:padding="5dp"
+        android:textAlignment="center"
         android:id="@+id/textview_ip_address"></TextView>
 </LinearLayout>
