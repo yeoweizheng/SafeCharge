@@ -5,11 +5,16 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.os.BatteryManager;
 import android.os.Bundle;
+import android.os.IBinder;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -38,10 +43,10 @@ import java.util.Enumeration;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements
-        AdapterView.OnItemClickListener, View.OnClickListener {
+        AdapterView.OnItemClickListener, View.OnClickListener,
+        ServiceConnection, MonitorService.IMonitorService {
 
     String wlanIP;
-    ArrayList<String> ipFound;
     String selectedPlugIP;
     Button onButton;
     Button offButton;
@@ -60,6 +65,7 @@ public class MainActivity extends AppCompatActivity implements
     EditText chargingThresholdView;
     ListView listView;
     Intent serviceIntent;
+    MonitorService monitorService;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -88,18 +94,32 @@ public class MainActivity extends AppCompatActivity implements
         listView.setAdapter(rowAdapter);
         listView.setOnItemClickListener(this);
         serviceIntent = new Intent(this, MonitorService.class);
-        getBatteryStatus();
+        getBatteryAndServiceStatus();
+        chargingThresholdView.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                setServiceStatus();
+            }
+            @Override
+            public void afterTextChanged(Editable s) { }
+        });
     }
     @Override
     public void onResume(){
         super.onResume();
-        if(getIntent().getStringExtra("ip") != null){
-            selectedPlugIP = getIntent().getStringExtra("ip");
-            selectedPlugView.setText(selectedPlugIP);
-        } else{
+        refreshViews();
+    }
+    void refreshViews(){
+        if(monitorService == null){
             resetIPInfo();
+            chargingThresholdView.setText("80");
+        } else {
+            selectedPlugIP = monitorService.getIP();
+            selectedPlugView.setText(selectedPlugIP);
+            chargingThresholdView.setText(monitorService.getThreshold() + "");
         }
-        chargingThresholdView.setText(getIntent().getIntExtra("threshold", 80) + "");
         getDeviceWlanIp();
         setPlugControls();
         setServiceStatus();
@@ -139,13 +159,11 @@ public class MainActivity extends AppCompatActivity implements
         scanNetwork();
     }
     void scanNetwork(){
-        ipFound = new ArrayList<>();
         rowItemList.clear();
         rowAdapter.notifyDataSetChanged();
         if(wlanIP == null) return;
         SubnetUtils utils = new SubnetUtils(wlanIP + "/24");
         String[] allIps = utils.getInfo().getAllAddresses();
-        ArrayList<String> openIps = new ArrayList<String>();
         for(int i = 0; i < allIps.length; i++){
             final String ip = allIps[i];
             new Thread(new Runnable() {
@@ -154,7 +172,6 @@ public class MainActivity extends AppCompatActivity implements
                     boolean validIP = false;
                     try{
                         Socket socket = new Socket(ip, 9999);
-                        ipFound.add(ip);
                         validIP = true;
                         socket.close();
                     } catch(UnknownHostException e){
@@ -173,6 +190,9 @@ public class MainActivity extends AppCompatActivity implements
         }
     }
     void scanNetworkCallback(String ip, boolean validIP){
+        for(RowItem item : rowItemList){
+            if(item.ipAddress.equals(ip)) return;
+        }
         if(validIP){
             rowItemList.add(new RowItem(ip));
             rowAdapter.notifyDataSetChanged();
@@ -182,7 +202,7 @@ public class MainActivity extends AppCompatActivity implements
         statusView.setText(status);
         levelView.setText(level + "");
     }
-    void getBatteryStatus(){
+    void getBatteryAndServiceStatus(){
         final BatteryManager batteryManager = (BatteryManager)getSystemService(BATTERY_SERVICE);
         new Thread(new Runnable() {
             @Override
@@ -203,7 +223,9 @@ public class MainActivity extends AppCompatActivity implements
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            updateBatteryStatus(status2, level2);
+                        updateBatteryStatus(status2, level2);
+                        setServiceStatus();
+                        setPlugControls();
                         }
                     });
                     try{
@@ -215,7 +237,7 @@ public class MainActivity extends AppCompatActivity implements
         }).start();
     }
     void setPlugControls(){
-        if(selectedPlugIP != null){
+        if(selectedPlugIP != null && !isServiceRunning()){
             onButton.setEnabled(true);
             offButton.setEnabled(true);
             onButton.setAlpha(1f);
@@ -256,9 +278,14 @@ public class MainActivity extends AppCompatActivity implements
             startServiceButton.setAlpha(0.4f);
             stopServiceButton.setEnabled(true);
             stopServiceButton.setAlpha(1f);
+            scanButton.setEnabled(false);
+            scanButton.setAlpha(0.4f);
+            if(monitorService == null){
+                bindService(serviceIntent, this, BIND_AUTO_CREATE);
+            }
         } else {
             serviceStatusView.setText("Not started");
-            if(selectedPlugIP != null) {
+            if(selectedPlugIP != null && isThresholdValid()) {
                 startServiceButton.setEnabled(true);
                 startServiceButton.setAlpha(1f);
             } else {
@@ -267,10 +294,39 @@ public class MainActivity extends AppCompatActivity implements
             }
             stopServiceButton.setEnabled(false);
             stopServiceButton.setAlpha(0.4f);
+            scanButton.setEnabled(true);
+            scanButton.setAlpha(1f);
         }
+    }
+    boolean isThresholdValid(){
+        try {
+            int currentBatteryLevel = Integer.parseInt(levelView.getText().toString());
+            int threshold = Integer.parseInt(chargingThresholdView.getText().toString());
+            if(threshold <= currentBatteryLevel) return false;
+        } catch(NumberFormatException e){
+            return false;
+        }
+        return true;
+    }
+    @Override
+    public void onServiceConnected(ComponentName name, IBinder service){
+        MonitorService.LocalBinder binder = (MonitorService.LocalBinder) service;
+        if(binder != null){
+            monitorService = binder.getService();
+            monitorService.setCallback(this);
+        }
+        refreshViews();
+    }
+    @Override
+    public void onServiceDisconnected(ComponentName name){
+        monitorService = null;
+    }
+    public void unbindService(){
+        if(monitorService != null) unbindService(this);
     }
     @Override
     public void onItemClick(AdapterView<?> adapter, View view, int pos, long id){
+        if(isServiceRunning()) return;
         RowItem item = (RowItem) adapter.getItemAtPosition(pos);
         selectedPlugIP = item.ipAddress;
         selectedPlugView.setText(selectedPlugIP);
@@ -284,14 +340,17 @@ public class MainActivity extends AppCompatActivity implements
                 int threshold = Integer.parseInt(chargingThresholdView.getText().toString());
                 serviceIntent.putExtra("ip", selectedPlugIP);
                 serviceIntent.putExtra("threshold", threshold);
-                stopService(serviceIntent);
                 startService(serviceIntent);
+                bindService(serviceIntent, this, BIND_AUTO_CREATE);
                 setServiceStatus();
+                setPlugControls();
                 Toast.makeText(this, "Service started", Toast.LENGTH_SHORT).show();
                 break;
             case R.id.button_stop_service:
                 stopService(serviceIntent);
+                if(monitorService != null) unbindService(this);
                 setServiceStatus();
+                setPlugControls();
                 Toast.makeText(this, "Service stopped", Toast.LENGTH_SHORT).show();
                 break;
             case R.id.button_scan:
@@ -347,6 +406,7 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public void onDestroy(){
         super.onDestroy();
+        if(monitorService != null) unbindService(this);
     }
 
 }

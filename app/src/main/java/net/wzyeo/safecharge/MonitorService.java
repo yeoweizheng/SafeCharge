@@ -9,7 +9,9 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.os.BatteryManager;
+import android.os.Binder;
 import android.os.IBinder;
 import android.util.Base64;
 import android.util.Log;
@@ -31,6 +33,8 @@ public class MonitorService extends Service {
     boolean firstRun;
     boolean triggeredOff;
     static final String CHANNEL_ID = "Foreground Service Channel";
+    BatteryStatusRunnable runnable;
+    IMonitorService callback;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId){
@@ -43,8 +47,6 @@ public class MonitorService extends Service {
         triggeredOff = false;
         getBatteryStatus();
         Intent activityIntent = new Intent(this, MainActivity.class);
-        activityIntent.putExtra("ip", ip);
-        activityIntent.putExtra("threshold", threshold);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, activityIntent, PendingIntent.FLAG_UPDATE_CURRENT);
         NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Foreground Service Channel", NotificationManager.IMPORTANCE_DEFAULT);
@@ -59,43 +61,46 @@ public class MonitorService extends Service {
         startForeground(1, notification);
         return START_REDELIVER_INTENT;
     }
-    void updateBatteryStatus(boolean isCharging, int level){
-        if(isCharging && level >= threshold){
+    void updateBatteryStatus(int level){
+        if(level >= threshold){
             sendPayload(offPayload);
-            triggeredOff = true;
+            stopSelf();
+            if(callback != null){
+                callback.unbindService();
+            }
         }
-        if(!isCharging && level < threshold && firstRun){
+        if(level < threshold && firstRun){
             sendPayload(onPayload);
             firstRun = false;
         }
-        if(triggeredOff && !isCharging){
-            stopSelf();
+    }
+    class BatteryStatusRunnable implements Runnable {
+        BatteryManager batteryManager;
+        boolean stopped = false;
+        public BatteryStatusRunnable(BatteryManager batteryManager) {
+            this.batteryManager = batteryManager;
+        }
+        public void stop(){
+            sendPayload(offPayload);
+            stopped = true;
+        }
+        @Override
+        public void run() {
+            int level;
+            while (true && !stopped) {
+                level = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+                updateBatteryStatus(level);
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                }
+            }
         }
     }
     void getBatteryStatus(){
         final BatteryManager batteryManager = (BatteryManager)getSystemService(BATTERY_SERVICE);
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                int statusCode;
-                int level;
-                boolean isCharging;
-                while(true) {
-                    statusCode = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS);
-                    if(statusCode == BatteryManager.BATTERY_STATUS_CHARGING || statusCode == BatteryManager.BATTERY_STATUS_FULL){
-                        isCharging = true;
-                    } else {
-                        isCharging = false;
-                    }
-                    level = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
-                    updateBatteryStatus(isCharging, level);
-                    try{
-                        Thread.sleep(1000);
-                    } catch(InterruptedException e){}
-                }
-
-            }
-        }).start();
+        runnable = new BatteryStatusRunnable(batteryManager);
+        new Thread(runnable).start();
     }
     void sendPayload(final byte[] payload){
         new Thread(new Runnable() {
@@ -112,13 +117,36 @@ public class MonitorService extends Service {
             }
         }).start();
     }
+    public String getIP(){
+        return this.ip;
+    }
+    public int getThreshold(){
+        return this.threshold;
+    }
+    IBinder binder = new LocalBinder();
+    public class LocalBinder extends Binder {
+        MonitorService getService(){
+            return MonitorService.this;
+        }
+    }
     @Override
     public IBinder onBind(Intent intent) {
-        // TODO: Return the communication channel to the service.
-        throw new UnsupportedOperationException("Not yet implemented");
+        return binder;
+    }
+    @Override
+    public boolean onUnbind(Intent intent){
+        this.callback = null;
+        return super.onUnbind(intent);
+    }
+    public interface IMonitorService{
+        void unbindService();
+    }
+    public void setCallback(IMonitorService callback){
+        this.callback = callback;
     }
     @Override
     public void onDestroy(){
         super.onDestroy();
+        runnable.stop();
     }
 }
