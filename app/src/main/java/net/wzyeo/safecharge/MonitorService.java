@@ -13,6 +13,7 @@ import android.content.ServiceConnection;
 import android.os.BatteryManager;
 import android.os.Binder;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.util.Base64;
 import android.util.Log;
 
@@ -35,6 +36,8 @@ public class MonitorService extends Service {
     static final String CHANNEL_ID = "Foreground Service Channel";
     BatteryStatusRunnable runnable;
     IMonitorService callback;
+    PowerManager powerManager;
+    PowerManager.WakeLock wakeLock;
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId){
@@ -59,6 +62,8 @@ public class MonitorService extends Service {
                 .setContentIntent(pendingIntent)
                 .build();
         startForeground(1, notification);
+        powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        startWakeLock();
         return START_REDELIVER_INTENT;
     }
     void updateBatteryStatus(int level){
@@ -144,9 +149,21 @@ public class MonitorService extends Service {
     public void setCallback(IMonitorService callback){
         this.callback = callback;
     }
+    public void startWakeLock(){
+        if(wakeLock != null){
+            if(!wakeLock.isHeld()) wakeLock.acquire();
+        } else {
+            wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "MonitorService::WakeLockTag");
+            wakeLock.acquire();
+        }
+    }
+    public void stopWakeLock(){
+        if(wakeLock != null) wakeLock.release();
+    }
     @Override
     public void onDestroy(){
         super.onDestroy();
         runnable.stop();
+        stopWakeLock();
     }
 }
