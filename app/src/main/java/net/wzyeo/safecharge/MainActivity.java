@@ -10,6 +10,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -66,6 +67,9 @@ public class MainActivity extends AppCompatActivity implements
     ListView listView;
     Intent serviceIntent;
     MonitorService monitorService;
+    SharedPreferences sharedPreferences;
+    SharedPreferences.Editor sharedPreferencesEditor;
+    Button saveThresholdButton;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -86,6 +90,8 @@ public class MainActivity extends AppCompatActivity implements
         startServiceButton.setOnClickListener(this);
         stopServiceButton.setOnClickListener(this);
         scanButton.setOnClickListener(this);
+        saveThresholdButton = findViewById(R.id.button_save_threshold);
+        saveThresholdButton.setOnClickListener(this);
         onPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu36Lfog==", Base64.DEFAULT);
         offPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu3qPeow==", Base64.DEFAULT);
         rowItemList = new ArrayList<>();
@@ -105,6 +111,8 @@ public class MainActivity extends AppCompatActivity implements
             @Override
             public void afterTextChanged(Editable s) { }
         });
+        sharedPreferences = getSharedPreferences("threshold", MODE_PRIVATE);
+        sharedPreferencesEditor = sharedPreferences.edit();
     }
     @Override
     public void onResume(){
@@ -112,13 +120,15 @@ public class MainActivity extends AppCompatActivity implements
         refreshViews();
     }
     void refreshViews(){
-        if(monitorService == null){
-            resetIPInfo();
-            chargingThresholdView.setText("80");
-        } else {
+        chargingThresholdView.clearFocus();
+        if(monitorService != null && isServiceRunning()){
             selectedPlugIP = monitorService.getIP();
             selectedPlugView.setText(selectedPlugIP);
             chargingThresholdView.setText(monitorService.getThreshold() + "");
+        } else {
+            resetIPInfo();
+            int threshold = sharedPreferences.getInt("threshold", 80);
+            chargingThresholdView.setText(threshold + "");
         }
         getDeviceWlanIp();
         setPlugControls();
@@ -308,6 +318,16 @@ public class MainActivity extends AppCompatActivity implements
         }
         return true;
     }
+    void saveThreshold(){
+        try{
+            int threshold = Integer.parseInt(chargingThresholdView.getText().toString());
+            sharedPreferencesEditor.putInt("threshold", threshold);
+            sharedPreferencesEditor.commit();
+            Toast.makeText(this, "Saved threshold value", Toast.LENGTH_SHORT).show();
+        } catch(NumberFormatException e){
+            Toast.makeText(this, "Failed to save threshold value", Toast.LENGTH_SHORT).show();
+        }
+    }
     @Override
     public void onServiceConnected(ComponentName name, IBinder service){
         MonitorService.LocalBinder binder = (MonitorService.LocalBinder) service;
@@ -364,6 +384,9 @@ public class MainActivity extends AppCompatActivity implements
                 break;
             case R.id.button_off:
                 sendPayload(offPayload);
+                break;
+            case R.id.button_save_threshold:
+                saveThreshold();
                 break;
         }
     }

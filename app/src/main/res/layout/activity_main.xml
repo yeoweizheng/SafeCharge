@@ -41,13 +41,23 @@
         <TextView
             style="@style/FontHeading"
             android:text="Charging threshold:"></TextView>
-        <EditText
-            android:id="@+id/textview_charging_threshold"
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:inputType="number"
-            android:text="80"></EditText>
+            android:layout_weight="1">
+            <EditText
+                android:id="@+id/textview_charging_threshold"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:inputType="number"
+                android:text="80"></EditText>
+            <Button
+                android:id="@+id/button_save_threshold"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Save"></Button>
+        </LinearLayout>
     </LinearLayout>
     <LinearLayout
         android:layout_width="match_parent"
