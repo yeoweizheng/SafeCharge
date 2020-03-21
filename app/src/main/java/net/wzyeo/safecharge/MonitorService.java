@@ -12,6 +12,7 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.BatteryManager;
 import android.os.Binder;
+import android.os.Build;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.util.Base64;
@@ -52,16 +53,24 @@ public class MonitorService extends Service {
         Intent activityIntent = new Intent(this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, activityIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-        NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Foreground Service Channel", NotificationManager.IMPORTANCE_DEFAULT);
-        NotificationManager manager = getSystemService(NotificationManager.class);
-        manager.createNotificationChannel(channel);
-        Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setContentTitle("SafeCharge Service")
-                .setContentText("Plug IP: " + ip + " Threshold: " + threshold)
-                .setContentIntent(pendingIntent)
-                .build();
-        startForeground(1, notification);
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Foreground Service Channel", NotificationManager.IMPORTANCE_DEFAULT);
+            NotificationManager manager = getSystemService(NotificationManager.class);
+            manager.createNotificationChannel(channel);
+            Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                    .setSmallIcon(R.drawable.ic_launcher_foreground)
+                    .setContentTitle("SafeCharge Service")
+                    .setContentText("Plug IP: " + ip + " Threshold: " + threshold)
+                    .setContentIntent(pendingIntent)
+                    .build();
+            startForeground(1, notification);
+        } else {
+            Notification notification = new NotificationCompat.Builder(this)
+                    .setContentTitle("SafeCharge Service")
+                    .setContentText("Plug IP: " + ip + " Threshold: " + threshold)
+                    .build();
+            startForeground(1, notification);
+        }
         powerManager = (PowerManager) getSystemService(POWER_SERVICE);
         startWakeLock();
         return START_REDELIVER_INTENT;
