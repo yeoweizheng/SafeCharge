@@ -66,8 +66,10 @@ public class MonitorService extends Service {
             startForeground(1, notification);
         } else {
             Notification notification = new NotificationCompat.Builder(this)
+                    .setSmallIcon(R.drawable.ic_launcher_foreground)
                     .setContentTitle("SafeCharge Service")
                     .setContentText("Plug IP: " + ip + " Threshold: " + threshold)
+                    .setContentIntent(pendingIntent)
                     .build();
             startForeground(1, notification);
         }
