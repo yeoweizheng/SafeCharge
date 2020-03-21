@@ -12,6 +12,7 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.os.BatteryManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.text.Editable;
@@ -60,6 +61,7 @@ public class MainActivity extends AppCompatActivity implements
     RowAdapter rowAdapter;
     TextView ipView;
     TextView statusView;
+    TextView statusLabelView;
     TextView levelView;
     TextView serviceStatusView;
     TextView selectedPlugView;
@@ -96,6 +98,7 @@ public class MainActivity extends AppCompatActivity implements
         offPayload = Base64.decode("AAAAKtDygfiL/5r31e+UtsWg1Iv5nPCR6LfEsNGlwOLYo4HyhueT9tTu3qPeow==", Base64.DEFAULT);
         rowItemList = new ArrayList<>();
         listView = findViewById(R.id.listview_ip_list);
+        statusLabelView = findViewById(R.id.textview_battery_status_label);
         rowAdapter = new RowAdapter(this, R.layout.activity_main, rowItemList);
         listView.setAdapter(rowAdapter);
         listView.setOnItemClickListener(this);
@@ -209,7 +212,12 @@ public class MainActivity extends AppCompatActivity implements
         }
     }
     void updateBatteryStatus(String status, int level){
-        statusView.setText(status);
+        if(status.equals("Unknown")){
+            statusLabelView.setVisibility(View.GONE);
+            statusView.setVisibility(View.GONE);
+        } else {
+            statusView.setText(status);
+        }
         levelView.setText(level + "");
     }
     void getBatteryAndServiceStatus(){
@@ -221,13 +229,17 @@ public class MainActivity extends AppCompatActivity implements
                 int level;
                 String status;
                 while(true) {
-                    statusCode = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS);
-                    if(statusCode == BatteryManager.BATTERY_STATUS_CHARGING || statusCode == BatteryManager.BATTERY_STATUS_FULL){
-                        status = "Charging";
-                    } else {
-                        status = "Not charging";
+                    status = "Unknown";
+                    if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        statusCode = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS);
+                        if(statusCode == BatteryManager.BATTERY_STATUS_CHARGING || statusCode == BatteryManager.BATTERY_STATUS_FULL){
+                            status = "Charging";
+                        } else {
+                            status = "Not charging";
+                        }
                     }
                     level = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+                    if(level <= 0) level = getBatteryLevelFromIntent();
                     final String status2 = status;
                     final int level2 = level;
                     runOnUiThread(new Runnable() {
@@ -245,6 +257,16 @@ public class MainActivity extends AppCompatActivity implements
 
             }
         }).start();
+    }
+    // If unable to get the correct battery level from BATTERY_PROPERTY_CAPACITY
+    int getBatteryLevelFromIntent(){
+        Intent intent = getApplicationContext().registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        if(intent != null){
+            int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+            int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+            return level * 100 / scale;
+        }
+        return 0;
     }
     void setPlugControls(){
         if(selectedPlugIP != null && !isServiceRunning()){

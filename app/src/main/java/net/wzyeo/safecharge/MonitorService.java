@@ -105,6 +105,7 @@ public class MonitorService extends Service {
             int level;
             while (true && !stopped) {
                 level = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+                if(level <= 0) level = getBatteryLevelFromIntent();
                 updateBatteryStatus(level);
                 try {
                     Thread.sleep(1000);
@@ -112,6 +113,16 @@ public class MonitorService extends Service {
                 }
             }
         }
+    }
+    // If unable to get the correct battery level from BATTERY_PROPERTY_CAPACITY
+    int getBatteryLevelFromIntent(){
+        Intent intent = getApplicationContext().registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        if(intent != null){
+            int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+            int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+            return level * 100 / scale;
+        }
+        return 0;
     }
     void getBatteryStatus(){
         final BatteryManager batteryManager = (BatteryManager)getSystemService(BATTERY_SERVICE);

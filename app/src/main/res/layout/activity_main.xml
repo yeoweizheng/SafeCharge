@@ -20,6 +20,7 @@
         android:layout_height="wrap_content">
         <TextView
             style="@style/FontHeading"
+            android:id="@+id/textview_battery_status_label"
             android:text="Battery Status:"></TextView>
         <TextView
             style="@style/FontContent"
