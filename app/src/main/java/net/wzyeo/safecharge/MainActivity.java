@@ -11,6 +11,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -72,6 +73,7 @@ public class MainActivity extends AppCompatActivity implements
     SharedPreferences sharedPreferences;
     SharedPreferences.Editor sharedPreferencesEditor;
     Button saveThresholdButton;
+    NetworkReceiver networkReceiver;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -116,6 +118,10 @@ public class MainActivity extends AppCompatActivity implements
         });
         sharedPreferences = getSharedPreferences("threshold", MODE_PRIVATE);
         sharedPreferencesEditor = sharedPreferences.edit();
+        IntentFilter intentFilter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
+        networkReceiver = new NetworkReceiver();
+        this.registerReceiver(networkReceiver, intentFilter);
+
     }
     @Override
     public void onResume(){
@@ -452,6 +458,14 @@ public class MainActivity extends AppCompatActivity implements
     public void onDestroy(){
         super.onDestroy();
         if(monitorService != null) unbindService(this);
+        unregisterReceiver(networkReceiver);
+    }
+
+    public class NetworkReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            scanButton.performClick();
+        }
     }
 
 }
